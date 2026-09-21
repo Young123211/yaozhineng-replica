@@ -4,6 +4,33 @@
 
 body {
   margin: 0;
+
+  background:
+    radial-gradient(
+      circle at 18% 74%,
+      rgba(105, 140, 255, 0.42),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 38% 82%,
+      rgba(181, 121, 246, 0.28),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 78% 22%,
+      rgba(110, 205, 255, 0.28),
+      transparent 30%
+    ),
+    linear-gradient(
+      135deg,
+      #f0ffff 0%,
+      #eff9ff 48%,
+      #eefbff 100%
+    );
+
+  background-attachment: fixed;
+  background-size: cover;
+  background-repeat: no-repeat;
 }
 
 button {
@@ -93,26 +120,18 @@ button {
   position: relative;
   min-height: 100vh;
   padding-top: 74px;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   overflow: hidden;
 
-  background:
-    radial-gradient(circle at 18% 74%, rgba(105, 140, 255, 0.38), transparent 24%),
-    radial-gradient(circle at 31% 87%, rgba(181, 121, 246, 0.25), transparent 21%),
-    radial-gradient(circle at 76% 24%, rgba(137, 207, 255, 0.20), transparent 24%),
-    linear-gradient(130deg, #f0ffff 0%, #effaff 48%, #eefbff 100%);
+  /* 关键：让 body 的固定背景显示出来 */
+  background: transparent;
 }
 
-.hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at center, transparent 0 35%, rgba(255,255,255,0.16) 75%);
-  pointer-events: none;
-}
+
 
 .hero-content {
   position: relative;
@@ -212,6 +231,14 @@ button {
 .down-button b {
   font-size: 25px;
   line-height: 14px;
+
+  display: inline-block;
+
+  animation:
+    downArrowFloat
+    1.4s
+    ease-in-out
+    infinite;
 }
 
 .molecule-left {
@@ -442,17 +469,6 @@ button {
 .tab.active {
   color: #4d6ff1;
   background: #edf0ff;
-}
-
-.tab.active::after {
-  content: '';
-  position: absolute;
-  left: 10%;
-  bottom: -10px;
-  width: 54%;
-  height: 4px;
-  border-radius: 10px;
-  background: #5572f3;
 }
 
 .tab-icon {
@@ -813,10 +829,14 @@ footer {
   width: 305px;
   min-width: 305px;
   height: 100vh;
+
   background: rgba(255,255,255,.75);
   border-right: 1px solid #dce2ee;
+
   display: flex;
   flex-direction: column;
+
+  overflow: visible;
 }
 
 .agent-brand {
@@ -857,7 +877,12 @@ footer {
 
 .conversation-area {
   flex: 1;
-  padding: 0 12px;
+  min-height: 0;
+
+  padding: 0 12px 12px;
+
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .no-conversation {
@@ -1776,4 +1801,579 @@ footer {
   .demo-grid.four {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+/* =========================
+   Conversation list upgrade
+   ========================= */
+
+.conversation-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: .18s ease;
+}
+
+.conversation-row:hover {
+  background: #f3f6ff;
+}
+
+.conversation-active {
+  background: #eef2ff;
+  border-color: #9dafff;
+}
+
+.conversation-icon {
+  flex-shrink: 0;
+}
+
+.conversation-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-delete {
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+
+  opacity: 0;
+  transition: .15s;
+
+  color: #8b93a3;
+}
+
+.conversation-row:hover
+.conversation-delete {
+  opacity: 1;
+}
+
+.conversation-delete:hover {
+  background: #ffeaea;
+  color: #e84d47;
+}
+
+
+/* =========================
+   Account menu
+   ========================= */
+
+.account-wrapper {
+  position: relative;
+  padding: 14px;
+  background: #fff;
+  flex-shrink: 0;
+
+  z-index: 100;
+}
+
+.account-box {
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: white;
+  border: 1px solid #e7ebf2;
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(40, 60, 120, 0.06);
+}
+.account-more {
+  width: 42px;
+  height: 42px;
+
+  border: none;
+  border-radius: 50%;
+
+  background: #f7f8fc;
+
+  cursor: pointer;
+
+  color: #9da4b2;
+
+  font-size: 17px;
+}
+
+.account-more:hover {
+  background: #eff2f8;
+}
+
+.account-popup {
+  position: absolute;
+
+  /* 放到账号区域右侧 */
+  left: calc(100% + 12px);
+  bottom: 14px;
+
+  width: 285px;
+
+  background: white;
+  border: 1px solid #e0e4eb;
+  border-radius: 17px;
+  padding: 18px;
+
+  box-shadow:
+    0 15px 45px rgba(39, 49, 80, .15);
+
+  z-index: 1000;
+}
+
+.account-popup-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.account-popup-header > div:last-child {
+  display: flex;
+  flex-direction: column;
+}
+
+.account-popup-header b {
+  font-size: 19px;
+}
+
+.account-popup-header span {
+  color: #a2a8b3;
+  margin-top: 4px;
+}
+
+.account-avatar.big {
+  width: 58px;
+  height: 58px;
+  font-size: 22px;
+}
+
+.account-popup-line {
+  height: 1px;
+
+  background: #e3e5e9;
+
+  margin: 18px 0 10px;
+}
+
+.logout-button {
+  width: 100%;
+
+  border: none;
+
+  background: white;
+
+  text-align: left;
+
+  padding: 12px;
+
+  border-radius: 9px;
+
+  color: #ef514c;
+
+  font-size: 17px;
+
+  cursor: pointer;
+}
+
+.logout-button:hover {
+  background: #fff2f2;
+}
+
+
+/* =========================
+   Delete conversation modal
+   ========================= */
+
+.delete-modal-mask {
+  position: fixed;
+
+  inset: 0;
+
+  background:
+    rgba(20, 25, 38, .25);
+
+  backdrop-filter: blur(2px);
+
+  z-index: 9999;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-modal {
+  width: 520px;
+
+  max-width: 90%;
+
+  background: white;
+
+  border-radius: 18px;
+
+  padding: 28px 30px;
+
+  box-shadow:
+    0 25px 70px
+    rgba(20, 30, 60, .20);
+}
+
+.delete-modal h2 {
+  margin: 0 0 16px;
+
+  font-size: 25px;
+
+  color: #17191f;
+}
+
+.delete-modal p {
+  margin: 0;
+
+  color: #747b88;
+
+  font-size: 16px;
+
+  line-height: 1.7;
+}
+
+.delete-modal-actions {
+  margin-top: 26px;
+
+  display: flex;
+
+  justify-content: flex-end;
+
+  gap: 12px;
+}
+
+.delete-modal-actions button {
+  min-width: 88px;
+
+  height: 45px;
+
+  border-radius: 9px;
+
+  font-size: 16px;
+
+  cursor: pointer;
+}
+
+.cancel-delete {
+  border: 1px solid #d0d4dc;
+
+  background: white;
+
+  color: #31343b;
+}
+
+.confirm-delete {
+  border: none;
+
+  background: #ef514b;
+
+  color: white;
+
+  box-shadow:
+    0 5px 12px
+    rgba(238, 74, 70, .20);
+}
+
+/* =========================
+   Feature cards style
+   ========================= */
+
+.agent-feature-card {
+  position: relative;
+  text-align: left;
+  overflow: hidden;
+}
+
+.feature-card-book {
+  position: absolute;
+  right: 34px;
+  bottom: 34px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 92px;
+  height: 92px;
+
+  font-size: 54px;
+  line-height: 1;
+
+  opacity: 0.42;
+
+  transform: rotate(-16deg);
+
+  pointer-events: none;
+  user-select: none;
+}
+
+/* 左一：蓝色 */
+.agent-feature-grid .agent-feature-card:nth-child(1) {
+  background: linear-gradient(
+    135deg,
+    #cfe4ff 0%,
+    #b8d4ff 100%
+  );
+}
+
+/* 中间：紫色 */
+.agent-feature-grid .agent-feature-card:nth-child(2) {
+  background: linear-gradient(
+    135deg,
+    #ddd7ff 0%,
+    #cfc9ff 100%
+  );
+}
+
+/* 右一：蓝色 */
+.agent-feature-grid .agent-feature-card:nth-child(3) {
+  background: linear-gradient(
+    135deg,
+    #cfe4ff 0%,
+    #b8d4ff 100%
+  );
+}
+
+.agent-feature-card h3 {
+  color: #1c2233;
+  font-weight: 800;
+}
+
+.agent-feature-card p {
+  color: rgba(61, 72, 96, 0.68);
+  line-height: 1.8;
+}
+
+.agent-feature-card span {
+  color: #5b79ff;
+  font-weight: 500;
+}
+
+.agent-brand,
+.new-chat,
+.conversation-header {
+  flex-shrink: 0;
+}
+
+.conversation-area::-webkit-scrollbar {
+  width: 6px;
+}
+
+.conversation-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.conversation-area::-webkit-scrollbar-thumb {
+  background: #d7ddea;
+  border-radius: 10px;
+}
+
+.conversation-area::-webkit-scrollbar-thumb:hover {
+  background: #bfc7d8;
+}
+
+.login-record a {
+  color: #6882c5;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.login-record a:hover {
+  text-decoration: underline;
+}
+
+/* 登录 / 注册按钮 */
+
+.login-submit-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.login-submit-button:not(:disabled) {
+  cursor: pointer;
+}
+
+
+/* 注册 / 返回登录文字按钮 */
+
+.register-switch {
+  border: none;
+  background: transparent;
+  color: #385df2;
+  font-weight: 700;
+  cursor: pointer;
+  margin-left: 8px;
+  padding: 0;
+  font-size: inherit;
+}
+
+
+/* 登录提示 */
+
+.login-message {
+  margin-top: 15px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.login-message.error {
+  color: #d94a45;
+  background: #fff1f0;
+  border: 1px solid #ffd2cf;
+}
+
+.login-message.success {
+  color: #3c9b66;
+  background: #eefaf3;
+  border: 1px solid #ccebd8;
+}
+
+/* =========================
+   三大核心能力自动进度条
+   ========================= */
+
+.tab-progress-track {
+  position: absolute;
+
+  left: 2.5%;
+  bottom: 0px;
+
+  width: 95%;
+  height: 4px;
+
+  border-radius: 10px;
+
+  background: rgba(
+    85,
+    114,
+    243,
+    0.12
+  );
+
+  overflow: hidden;
+
+  pointer-events: none;
+}
+
+
+.tab-progress-fill {
+  display: block;
+
+  height: 100%;
+  width: 0;
+
+  background: #5572f3;
+
+  border-radius: 10px;
+
+  animation-name: tabProgressAnimation;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes downArrowFloat {
+
+  0% {
+    transform:
+      translateY(0);
+
+    opacity: 0.55;
+  }
+
+  50% {
+    transform:
+      translateY(8px);
+
+    opacity: 1;
+  }
+
+  100% {
+    transform:
+      translateY(0);
+
+    opacity: 0.55;
+  }
+
+}
+
+@keyframes tabProgressAnimation {
+
+  from {
+    width: 0%;
+  }
+
+  to {
+    width: 100%;
+  }
+
+}
+
+
+
+
+/* ========================================
+   首页固定动态背景
+   ======================================== */
+
+body {
+  position: relative;
+  background: #eefaff;
+}
+
+/*
+  让真正的网页内容在动态背景上面
+*/
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+.footer-record {
+  color: #627cb8;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.footer-record:hover {
+  text-decoration: underline;
+}
+
+.login-brand-home {
+  border: none;
+  background: transparent;
+  padding: 0;
+
+  font: inherit;
+  color: inherit;
+
+  cursor: pointer;
+
+  text-align: left;
+}
+
+.login-brand-home {
+  transition: opacity 0.18s ease;
+}
+
+.login-brand-home:hover {
+  opacity: 0.82;
+}
+
+.logo-box img,
+.login-mini-logo img,
+.login-main-logo img,
+.agent-small-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }

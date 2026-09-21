@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const quickTasks = [
   '请对这个分子结构进行成药性优化',
@@ -24,31 +24,121 @@ const featureCards = [
   },
 ]
 
+function createConversationTitle(text = '') {
+  const cleanText = text
+    .trim()
+    .replace(/\s+/g, ' ')
+
+  if (!cleanText) {
+    return '新对话'
+  }
+
+  // 提取第一句话
+  const firstSentence =
+    cleanText
+      .split(/[。！？!?；;\n]/)[0]
+      .trim()
+
+  const title =
+    firstSentence || cleanText
+
+  // 最多显示前 12 个字符
+  if (title.length > 12) {
+    return title.slice(0, 12) + '…'
+  }
+
+  return title
+}
+
 function AgentPage({ onLogout }) {
-  const [messages, setMessages] = useState([])
+  const currentUser =
+    localStorage.getItem('yaozhineng-current-user') ||
+    '未登录用户'
+
+  const [conversations, setConversations] = useState([])
+  
+  const [activeConversationId, setActiveConversationId] = useState(null)
+
   const [input, setInput] = useState('')
   const [preview, setPreview] = useState(null)
-  const [conversationCount, setConversationCount] = useState(0)
   const [loading, setLoading] = useState(false)
+
+  const [accountOpen, setAccountOpen] = useState(false)
+
+  const [deleteId, setDeleteId] = useState(null)
 
   const fileInputRef = useRef(null)
 
-  const newConversation = () => {
-    setMessages([])
-    setInput('')
-    setPreview(null)
-    setConversationCount((count) => count + 1)
+  const accountWrapperRef =
+    useRef(null)
+
+  useEffect(() => {
+  const handleClickOutside = (event) => {
+    if (
+      accountOpen &&
+      accountWrapperRef.current &&
+      !accountWrapperRef.current.contains(
+        event.target
+      )
+    ) {
+      setAccountOpen(false)
+    }
   }
 
+  document.addEventListener(
+    'mousedown',
+    handleClickOutside
+  )
+
+  return () => {
+    document.removeEventListener(
+      'mousedown',
+      handleClickOutside
+    )
+  }
+}, [accountOpen])
+
+  // 当前正在看的对话
+  const activeConversation = conversations.find(
+    (item) => item.id === activeConversationId
+  )
+
+  const messages = activeConversation?.messages || []
+
+  // 新建对话
+  const newConversation = () => {
+    const id = Date.now()
+
+    const newChat = {
+  id,
+  title: '新对话',
+  messages: [],
+  }
+
+    setConversations((old) => [
+      newChat,
+      ...old,
+    ])
+
+    setActiveConversationId(id)
+
+    setInput('')
+    setPreview(null)
+    setLoading(false)
+  }
+
+  // 上传图片
   const handleUpload = (event) => {
     const file = event.target.files?.[0]
 
     if (!file) return
 
     const url = URL.createObjectURL(file)
+
     setPreview(url)
   }
 
+  // 删除待上传图片
   const removePreview = () => {
     setPreview(null)
 
@@ -57,48 +147,124 @@ function AgentPage({ onLogout }) {
     }
   }
 
-  const createAssistantReply = () => {
-    return {
-      role: 'assistant',
-      type: 'result',
-    }
+  // 给某个对话添加消息
+  const addMessage = (
+    conversationId,
+    message
+  ) => {
+    setConversations((old) =>
+      old.map((conversation) =>
+        conversation.id === conversationId
+          ? {
+              ...conversation,
+
+              messages: [
+                ...conversation.messages,
+                message,
+              ],
+            }
+          : conversation
+      )
+    )
   }
 
+  // 发送消息
   const sendMessage = (customText) => {
     const text =
       typeof customText === 'string'
         ? customText
         : input
 
-    if (!text.trim() && !preview) return
+    if (!text.trim() && !preview) {
+      return
+    }
 
     const userMessage = {
       role: 'user',
+
       text:
         text ||
         '请对这个分子结构进行成药性优化',
+
       image: preview,
     }
 
-    setMessages((old) => [
-      ...old,
-      userMessage,
-    ])
+    let conversationId =
+      activeConversationId
+
+    // 如果目前没有任何对话
+    // 自动创建一个
+    if (!conversationId) {
+      conversationId = Date.now()
+
+      const title =
+        createConversationTitle(text)
+
+      setConversations((old) => [
+        {
+          id: conversationId,
+          title,
+          messages: [userMessage],
+        },
+        ...old,
+      ])
+
+      setActiveConversationId(
+        conversationId
+      )
+    } else {
+      // 给当前对话增加用户消息
+      setConversations((old) =>
+        old.map((conversation) => {
+          if (
+            conversation.id !==
+            conversationId
+          ) {
+            return conversation
+          }
+
+          // 第一条消息自动作为对话名称
+          let newTitle =
+            conversation.title
+
+          if (conversation.messages.length === 0) {
+            newTitle =
+              createConversationTitle(text)
+          }
+
+          return {
+            ...conversation,
+
+            title: newTitle,
+
+            messages: [
+              ...conversation.messages,
+              userMessage,
+            ],
+          }
+        })
+      )
+    }
 
     setInput('')
     setPreview(null)
     setLoading(true)
 
+    // 模拟 AI 思考
     setTimeout(() => {
       setLoading(false)
 
-      setMessages((old) => [
-        ...old,
-        createAssistantReply(),
-      ])
+      addMessage(
+        conversationId,
+        {
+          role: 'assistant',
+          type: 'result',
+        }
+      )
     }, 1300)
   }
 
+  // 三个快捷任务
   const runQuickTask = (index) => {
     if (index === 0) {
       sendMessage(
@@ -119,18 +285,76 @@ function AgentPage({ onLogout }) {
     }
   }
 
+  // 点击某个历史对话
+  const selectConversation = (id) => {
+    setActiveConversationId(id)
+
+    setInput('')
+    setPreview(null)
+    setLoading(false)
+  }
+
+  // 打开删除确认框
+  const askDeleteConversation = (
+    event,
+    id
+  ) => {
+    event.stopPropagation()
+
+    setDeleteId(id)
+  }
+
+  // 真正删除
+  const confirmDeleteConversation = () => {
+    const remaining =
+      conversations.filter(
+        (item) =>
+          item.id !== deleteId
+      )
+
+    setConversations(remaining)
+
+    // 删除的刚好是当前对话
+    if (
+      deleteId ===
+      activeConversationId
+    ) {
+      setActiveConversationId(
+        remaining[0]?.id || null
+      )
+    }
+
+    setDeleteId(null)
+  }
+
   return (
     <div className="agent-page">
+
+      {/* =====================
+          左侧栏
+      ====================== */}
+
       <aside className="agent-sidebar">
+
         <div className="agent-brand">
+
           <div className="agent-small-logo">
-            AI
+            <img
+              src={`${import.meta.env.BASE_URL}yaozhineng-logo.png`}
+              alt="药智能"
+            />
           </div>
 
           <div>
-            <h3>成药性优化智能体</h3>
-            <p>成药性分析与优化</p>
+            <h3>
+              成药性优化智能体
+            </h3>
+
+            <p>
+              成药性分析与优化
+            </p>
           </div>
+
         </div>
 
         <button
@@ -141,155 +365,325 @@ function AgentPage({ onLogout }) {
         </button>
 
         <div className="conversation-header">
-          <span>对话列表</span>
-          <b>{conversationCount}</b>
+
+          <span>
+            对话列表
+          </span>
+
+          <b>
+            {conversations.length}
+          </b>
+
         </div>
 
+
+        {/* 对话列表 */}
+
         <div className="conversation-area">
-          {conversationCount === 0 ? (
+
+          {conversations.length === 0 ? (
+
             <div className="no-conversation">
               暂无对话记录
             </div>
+
           ) : (
-            Array.from({
-              length: conversationCount,
-            }).map((_, index) => (
-              <div
-                className="conversation-row"
-                key={index}
-              >
-                💬 新对话 {conversationCount - index}
-              </div>
-            ))
+
+            conversations.map(
+              (conversation) => (
+
+                <div
+                  key={conversation.id}
+
+                  className={`conversation-row ${
+                    activeConversationId ===
+                    conversation.id
+                      ? 'conversation-active'
+                      : ''
+                  }`}
+
+                  onClick={() =>
+                    selectConversation(
+                      conversation.id
+                    )
+                  }
+                >
+
+                  
+
+                  <span className="conversation-name">
+                    {conversation.title}
+                  </span>
+
+                  <button
+                    className="conversation-delete"
+
+                    onClick={(event) =>
+                      askDeleteConversation(
+                        event,
+                        conversation.id
+                      )
+                    }
+                  >
+                    🗑
+                  </button>
+
+                </div>
+              )
+            )
           )}
+
         </div>
 
-        <div className="account-box">
-          <div className="account-avatar">
-            1
+
+        {/* =====================
+            左下角账户
+        ====================== */}
+
+        <div
+          className="account-wrapper"
+          ref={accountWrapperRef}
+        >
+
+          {accountOpen && (
+
+            <div className="account-popup">
+
+              <div className="account-popup-header">
+
+                <div className="account-avatar big">
+                  1
+                </div>
+
+                <div>
+
+                  <b>
+                    {currentUser}
+                  </b>
+
+                  <span>
+                    账号中心
+                  </span>
+
+                </div>
+
+              </div>
+
+              <div className="account-popup-line"></div>
+
+              <button
+                className="logout-button"
+                onClick={onLogout}
+              >
+                ↪　退出登录
+              </button>
+
+            </div>
+          )}
+
+
+          <div className="account-box">
+
+            <div className="account-avatar">
+              1
+            </div>
+
+            <div className="account-info">
+
+              <b>
+                {currentUser}
+              </b>
+
+              <span>
+                账号中心
+              </span>
+
+            </div>
+
+            <button
+              className="account-more"
+              onClick={() =>
+                setAccountOpen(
+                  !accountOpen
+                )
+              }
+            >
+              •••
+            </button>
+
           </div>
 
-          <div className="account-info">
-            <b>112233445566</b>
-            <span>账号中心</span>
-          </div>
-
-          <button onClick={onLogout}>
-            退出
-          </button>
         </div>
+
       </aside>
 
+
+      {/* =====================
+          右侧主区域
+      ====================== */}
+
       <main className="agent-main">
+
         {messages.length === 0 &&
         !loading ? (
+
           <div className="agent-home">
-            <h1>成药性优化智能体</h1>
+
+            <h1>
+              成药性优化智能体
+            </h1>
 
             <p className="agent-subtitle">
               上传化合物结构图或输入SMILES，
               快速获得候选分子和成药性优化方案
             </p>
 
+
+            {/* 快捷任务 */}
+
             <div className="quick-tasks">
+
               {quickTasks.map(
                 (task, index) => (
+
                   <button
                     key={task}
+
                     onClick={() =>
                       runQuickTask(index)
                     }
                   >
                     {task}
                   </button>
+
                 )
               )}
+
             </div>
+
+
+            {/* 功能卡 */}
 
             <div className="agent-feature-grid">
-              {featureCards.map(
-                (card, index) => (
-                  <button
-                    className="agent-feature-card"
-                    key={card.title}
-                    onClick={() =>
-                      runQuickTask(index)
-                    }
-                  >
-                    <h3>{card.title}</h3>
+              {featureCards.map((card, index) => (
+               <button
+                  className="agent-feature-card"
+                  key={card.title}
+                  onClick={() =>
+                   runQuickTask(index)
+                  }
+                >
+                  <div className="feature-card-book">
+                    📘
+                  </div>
 
-                    <p>{card.desc}</p>
+                  <h3>{card.title}</h3>
+                  <p>{card.desc}</p>
+                  <span>{card.tag}</span>
 
-                    <span>
-                      {card.tag}
-                    </span>
+                  
+                </button>
+                 ))}
+              </div>
 
-                    <div className="card-decoration">
-                      ▱
-                    </div>
-                  </button>
-                )
-              )}
-            </div>
           </div>
+
         ) : (
+
           <div className="chat-area">
+
             {messages.map(
               (message, index) => (
+
                 <div
                   key={index}
+
                   className={`message ${
                     message.role
                   }`}
                 >
+
                   {message.role ===
                   'user' ? (
+
                     <div className="user-message">
+
                       <div>
-                        <b>用户</b>
+
+                        <b>
+                          用户
+                        </b>
 
                         {message.image && (
+
                           <img
                             src={
                               message.image
                             }
                             alt="uploaded"
                           />
+
                         )}
 
                         <p>
                           {message.text}
                         </p>
+
                       </div>
 
                       <span className="message-avatar">
                         U
                       </span>
+
                     </div>
+
                   ) : (
+
                     <AgentResult />
+
                   )}
+
                 </div>
+
               )
             )}
 
+
             {loading && (
+
               <div className="thinking-box">
+
                 <span className="loader"></span>
 
                 <b>
                   深度思考与分析中...
                 </b>
 
-                <span>展开</span>
+                <span>
+                  展开
+                </span>
+
               </div>
+
             )}
+
           </div>
+
         )}
 
+
+        {/* =====================
+            输入框
+        ====================== */}
+
+
+        
         <div className="composer-wrapper">
+
           {preview && (
+
             <div className="upload-preview">
+
               <img
                 src={preview}
                 alt="preview"
@@ -300,12 +694,16 @@ function AgentPage({ onLogout }) {
               >
                 ×
               </button>
+
             </div>
+
           )}
 
           <div className="composer">
+
             <button
               className="upload-button"
+
               onClick={() =>
                 fileInputRef.current?.click()
               }
@@ -323,33 +721,95 @@ function AgentPage({ onLogout }) {
 
             <input
               className="message-input"
+
               placeholder="上传分子图像或靶点 PDB，输入 SMILES / 靶点 ID，或直接描述需求"
+
               value={input}
+
               onChange={(event) =>
                 setInput(
                   event.target.value
                 )
               }
+
               onKeyDown={(event) => {
+
                 if (
-                  event.key === 'Enter'
+                  event.key ===
+                  'Enter'
                 ) {
                   sendMessage()
                 }
+
               }}
             />
 
             <button
               className="send-button"
+
               onClick={() =>
                 sendMessage()
               }
             >
               ➤
             </button>
+
           </div>
+
         </div>
+
       </main>
+
+
+      {/* =====================
+          删除确认弹窗
+      ====================== */}
+
+      {deleteId && (
+
+        <div className="delete-modal-mask">
+
+          <div className="delete-modal">
+
+            <h2>
+              删除当前对话?
+            </h2>
+
+            <p>
+              删除后将无法恢复该会话的消息记录和分析结果。
+              此操作只会影响当前选中的一条对话。
+            </p>
+
+            <div className="delete-modal-actions">
+
+              <button
+                className="cancel-delete"
+
+                onClick={() =>
+                  setDeleteId(null)
+                }
+              >
+                取消
+              </button>
+
+              <button
+                className="confirm-delete"
+
+                onClick={
+                  confirmDeleteConversation
+                }
+              >
+                删除
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
     </div>
   )
 }
